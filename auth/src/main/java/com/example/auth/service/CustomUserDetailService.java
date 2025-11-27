@@ -18,32 +18,33 @@ import lombok.RequiredArgsConstructor;
 @Getter
 public class CustomUserDetailService implements UserDetailsService {
 
-    private final UserRepository userRepository;
+        private final UserRepository userRepository;
 
-    @Override
-    public UserDetails loadUserByUsername(String login) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(login)
-                .orElseThrow(
-                        () -> new UsernameNotFoundException(
-                                "User not found with username or employee code: "
-                                        + login));
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
-                user.getPassword(),
-                user.isActive(), // enabled
-                true, // accountNonExpired
-                true, // credentialsNonExpired
-                true, // accountNonLocked
-                new ArrayList<>() // authorities
-        );
-    }
+        // CustomUserDetailService
+        @Override
+        public UserDetails loadUserByUsername(String login) throws UsernameNotFoundException {
+                User user = userRepository.findByUsername(login)
+                                .orElseGet(() -> userRepository.findByEmailIgnoreCase(login)
+                                                .orElseThrow(() -> new UsernameNotFoundException(
+                                                                "User not found: " + login)));
 
-    public User getUserByLogin(String login) {
-        return userRepository.findByUsername(login)
-                .orElseThrow(
-                        () -> new UsernameNotFoundException(
-                                "User not found with username or employee code: "
-                                        + login));
-    }
+                boolean enabled = Boolean.TRUE.equals(user.isActive());
+                String pwd = (user.getPassword() == null || user.getPassword().isBlank())
+                                ? "PASSWORD_NOT_USED"
+                                : user.getPassword();
+
+                return new org.springframework.security.core.userdetails.User(
+                                user.getUsername() != null ? user.getUsername() : user.getEmail(),
+                                pwd,
+                                enabled, true, true, true,
+                                new ArrayList<>());
+        }
+
+        public User getUserByLogin(String login) {
+                return userRepository.findByUsername(login)
+                                .orElseGet(() -> userRepository.findByEmailIgnoreCase(login)
+                                                .orElseThrow(() -> new UsernameNotFoundException(
+                                                                "User not found: " + login)));
+        }
 
 }
