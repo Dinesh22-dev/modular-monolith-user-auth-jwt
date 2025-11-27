@@ -2,8 +2,13 @@ package com.example.user.util;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
 
-public final class PasswordUtil {
+import lombok.RequiredArgsConstructor;
+
+@Component
+@RequiredArgsConstructor
+public class PasswordUtil {
     private static final int COST = 12; // 10–12 is a good default
     private static final PasswordEncoder ENCODER = new BCryptPasswordEncoder(COST);
 

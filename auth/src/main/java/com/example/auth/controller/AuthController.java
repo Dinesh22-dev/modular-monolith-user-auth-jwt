@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.auth.dto.AuthRequest;
 import com.example.auth.dto.AuthResponse;
 import com.example.auth.service.CustomUserDetailService;
+import com.example.auth.service.otp.OtpService;
 import com.example.auth.util.JWTUtil;
 import com.example.user.entity.User;
 
@@ -33,6 +34,8 @@ public class AuthController {
     private final AuthenticationManager emailOnlyAuthManager;
 
     private final CustomUserDetailService userDetailService;
+
+    private final OtpService otpService;
 
     private final JWTUtil jwtUtil;
 
@@ -97,6 +100,56 @@ public class AuthController {
 
         return ResponseEntity.ok(authResponse);
 
+    }
+
+    @PostMapping("/login-generate-otp")
+    public ResponseEntity<?> loginGenerateOtp(@RequestBody AuthRequest authRequest) {
+        User user = otpService.checkUser(authRequest.getUserName(), authRequest.getPassword());
+
+        if (user == null) {
+            throw new RuntimeException("Invalid Credentials");
+        }
+        String otpTransactionId = otpService.startChallenge(user.getEmail(), null, user.getEmail());
+
+        return ResponseEntity.ok(Map.of("otpTransactionId", otpTransactionId));
+    }
+
+    @PostMapping("/login-generate-otp-only-email")
+    public ResponseEntity<?> loginGenerateOtpOnlyEmail(@RequestParam String email) {
+        User user = otpService.checkUserOnlyEmail(email);
+
+        if (user == null) {
+            throw new RuntimeException("Invalid Credentials");
+        }
+        String otpTransactionId = otpService.startChallenge(user.getEmail(), null, user.getEmail());
+
+        return ResponseEntity.ok(Map.of("otpTransactionId", otpTransactionId));
+    }
+
+    @PostMapping("/login-resend-otp")
+    public ResponseEntity<?> loginResendOtp(@RequestParam String transactionId) {
+        String otpTransactionId = otpService.resendOtp(transactionId);
+        return ResponseEntity.ok(Map.of("otpTransactionId", otpTransactionId));
+    }
+
+    @PostMapping("/login-verify-otp")
+    public ResponseEntity<?> loginVerifyOtp(@RequestParam String transactionId, @RequestParam String otp) {
+        User user = otpService.verifyy(transactionId, otp);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid OTP or expired"));
+        }
+
+        // load UserDetails and generate token
+        final UserDetails userDetails = userDetailService.loadUserByUsername(user.getEmail());
+        final String jwt = jwtUtil.generateToken(userDetails);
+
+        // you already use AuthResponse in other endpoints
+        AuthResponse authResponse = new AuthResponse();
+        authResponse.setToken(jwt);
+        authResponse.setName(user.getName());
+        authResponse.setEmail(user.getEmail());
+
+        return ResponseEntity.ok(authResponse);
     }
 
 }

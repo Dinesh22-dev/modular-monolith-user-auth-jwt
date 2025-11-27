@@ -35,7 +35,7 @@ public class OtpServiceImpl implements OtpService {
         User user = userRepository.findByEmailIgnoreCase(userEmail).get();
 
         Otp c = new Otp();
-        c.setUserId(user);
+        c.setUser(user);
         c.setChannel(channel);
         c.setOtpHash(hash);
         c.setOtp(otp);
@@ -92,8 +92,64 @@ public class OtpServiceImpl implements OtpService {
 
     @Override
     public User checkUser(String email, String password) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'checkUser'");
+
+        User user = userRepository.findByEmailIgnoreCase(email).get();
+        if (passwordUtil.matches(password, user.getPassword())) {
+            return user;
+        }
+        return null;
+    }
+
+    @Override
+    public User verifyy(String transactionId, String otp) {
+        var otps = otpRepo.findByTransactionsAndUsedFalse(transactionId)
+                .orElse(null);
+        if (otps == null)
+            return null;
+
+        if (otps.getExpiresAt().isBefore(Instant.now()))
+            return null;
+
+        if (otps.getAttempts() >= MAX_ATTEMPTS)
+            return null;
+
+        otps.setAttempts(otps.getAttempts() + 1);
+
+        boolean ok = hash(otp).equals(otps.getOtpHash());
+        if (ok) {
+            otps.setUsed(true);
+            otpRepo.save(otps); // persist the used flag and attempts
+            return otps.getUser(); // return the associated User
+        } else {
+            otpRepo.save(otps); // persist attempts increment
+            return null;
+        }
+    }
+
+    @Override
+    public User checkUserOnlyEmail(String email) {
+        User user = userRepository.findByEmailIgnoreCase(email).get();
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+        return user;
+    }
+
+    @Override
+    public String resendOtp(String transactionId) {
+        String otp = generateOtp(6); // e.g., "123456"
+        String hash = hash(otp);
+        Otp otps = otpRepo.findByTransactions(transactionId).orElse(null);
+        if (otps == null)
+            return null;
+
+        otps.setOtpHash(hash);
+        otps.setOtp(otp);
+        otps.setAttempts(0);
+        otps.setUsed(false);
+        otps.setExpiresAt(Instant.now().plus(OTP_TTL));
+        otpRepo.save(otps);
+        return otps.getOtp();
     }
 
 }

@@ -4,10 +4,16 @@ import com.example.user.entity.User;
 
 public interface OtpService {
 
-    public String startChallenge(String userEmail, String channel, String sendTo);
+    String startChallenge(String userEmail, String channel, String sendTo);
 
-    public boolean verify(String transactionId, String otp);
+    boolean verify(String transactionId, String otp);
 
     User checkUser(String email, String password);
+
+    User verifyy(String transactionId, String otp);
+
+    User checkUserOnlyEmail(String email);
+
+    String resendOtp(String transactionId);
 
 }

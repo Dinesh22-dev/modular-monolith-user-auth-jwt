@@ -15,12 +15,15 @@ import lombok.Setter;
 public class Otp {
 
     @Id
-    private int id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
 
     @Column(length = 36)
     private String transactions = UUID.randomUUID().toString(); // transactionId
 
-    private User userId;
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user; // d;
 
     @Column(length = 100)
     private String channel; // "email", "sms"
